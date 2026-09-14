@@ -110,7 +110,8 @@ class ReplicationConnectorLogic(gridNode: IManagedGridNode, val host: Replicatio
         set(value) {
             field = value
             host.saveChanges()
-            remountMatterNetworkStorage()
+            remountStorage()
+            refreshCraftingProvider()
         }
 
     fun setPriority(newValue: Int) {
@@ -196,9 +197,7 @@ class ReplicationConnectorLogic(gridNode: IManagedGridNode, val host: Replicatio
 
     private fun updatePatterns() {
         _patterns.reset()
-        if (mainNode.grid != null) {
-            ICraftingProvider.requestUpdate(mainNode)
-        }
+        refreshCraftingProvider()
     }
 
     inner class CraftingProvider : ICraftingProvider {
@@ -260,6 +259,8 @@ class ReplicationConnectorLogic(gridNode: IManagedGridNode, val host: Replicatio
         override fun isBusy(): Boolean {
             return !canPushNextPattern()
         }
+
+        override fun getPatternPriority() = priority
     }
 
     inner class Ticker : IGridTickable {
@@ -385,7 +386,7 @@ class ReplicationConnectorLogic(gridNode: IManagedGridNode, val host: Replicatio
         delegatingStorage.storage = MatterNetworkStorage(matterNetwork)
         matterNetwork.addListener(matterNetworkListener)
 
-        remountMatterNetworkStorage()
+        remountStorage()
         updatePatterns()
     }
 
@@ -401,7 +402,7 @@ class ReplicationConnectorLogic(gridNode: IManagedGridNode, val host: Replicatio
         connectedMatterNetwork = null
         delegatingStorage.storage = null
 
-        remountMatterNetworkStorage()
+        remountStorage()
         updatePatterns()
     }
 
@@ -472,10 +473,12 @@ class ReplicationConnectorLogic(gridNode: IManagedGridNode, val host: Replicatio
         pushedReplicationTasks = tag.getCodec(PUSHED_REPLICATION_TASKS_CODEC) ?: ObjectOpenHashSet()
     }
 
-    private fun remountMatterNetworkStorage() {
-        if (mainNode.grid != null) {
-            IStorageProvider.requestUpdate(mainNode)
-        }
+    private fun remountStorage() {
+        IStorageProvider.requestUpdate(mainNode)
+    }
+
+    private fun refreshCraftingProvider() {
+        ICraftingProvider.requestUpdate(mainNode)
     }
 
     var wasOnline = false
@@ -485,7 +488,7 @@ class ReplicationConnectorLogic(gridNode: IManagedGridNode, val host: Replicatio
         if (wasOnline != currentOnline) {
             wasOnline = currentOnline
             host.saveChanges()
-            remountMatterNetworkStorage()
+            remountStorage()
         }
     }
 
